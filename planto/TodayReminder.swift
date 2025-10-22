@@ -10,5 +10,10 @@ import SwiftUI
 struct TodayReminder: View {
     var body: some View {
         Text("Hello, World!")
+            .font(.system(size: 19))
     }
+}
+
+#Preview {
+    TodayReminder()
 }
