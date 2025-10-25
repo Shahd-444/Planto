@@ -11,10 +11,10 @@ struct RontentView: View {
     @State private var wateringDays: String = "Every day"
     @State private var waterAmount: String = "20–50 ml"
 
-    let roomOptions = ["Bedroom", "Living Room", "Balcony"]
+    let roomOptions = ["Bedroom", "Living Room", "Balcony", "Kitchen"]
     let lightOptions = ["Full sun", "Partial shade", "Low light"]
-    let daysOptions = ["Every day", "Every 2 days", "Weekly"]
-    let waterOptions = ["20–50 ml", "50–100 ml", "100–150 ml"]
+    let daysOptions = ["Every day", "Every 2 days", "Every 3 days", "Once a week","Every 10 days","Every 2 weeks"]
+    let waterOptions = ["20–50 ml", "50–100 ml", "100–200 ml", "200-300 ml"]
 
     var body: some View {
         NavigationStack {
