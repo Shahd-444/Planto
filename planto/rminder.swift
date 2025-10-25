@@ -68,15 +68,10 @@ struct RontentView: View {
                     .tint(Color(.lightGreen).opacity(0.65))                }
             }
 
-            // Invisible navigation link that triggers when isActive = true
-            NavigationLink(
-                destination: TodayReminder()
-                    .navigationBarBackButtonHidden(true),
-                isActive: $isActive
-            ) {
-                EmptyView()
-            }
-            .hidden()
+            .navigationDestination(isPresented: $isActive) {
+                TodayReminder()
+                      .navigationBarBackButtonHidden(true)
+                  }
         }
     }
 
