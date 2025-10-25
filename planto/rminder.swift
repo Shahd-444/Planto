@@ -13,8 +13,10 @@ struct RontentView: View {
 
     let roomOptions = ["Bedroom", "Living Room", "Balcony", "Kitchen"]
     let lightOptions = ["Full sun", "Partial shade", "Low light"]
-    let daysOptions = ["Every day", "Every 2 days", "Every 3 days", "Once a week","Every 10 days","Every 2 weeks"]
-    let waterOptions = ["20–50 ml", "50–100 ml", "100–200 ml", "200-300 ml"]
+    let daysOptions = ["Every day", "Every 2 days", "Every 3 days", "Once a week", "Every 10 days", "Every 2 weeks"]
+    let waterOptions = ["20–50 ml", "50–100 ml", "100–200 ml", "200–300 ml"]
+
+    @State private var isActive = false
 
     var body: some View {
         NavigationStack {
@@ -43,38 +45,46 @@ struct RontentView: View {
                     }
                 }
             }
-            .navigationTitle("Set Reminder").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Set Reminder")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-//
-                            
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         saveReminder()
+                        isActive = true
                     } label: {
                         Image(systemName: "checkmark")
                             .foregroundColor(.white)
-                        
-                    }.buttonStyle(.borderedProminent)
-                        .tint(Color(.lightGreen).opacity(0.65))
-                
-                }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(.lightGreen).opacity(0.65))                }
             }
+
+            // Invisible navigation link that triggers when isActive = true
+            NavigationLink(
+                destination: TodayReminder()
+                    .navigationBarBackButtonHidden(true),
+                isActive: $isActive
+            ) {
+                EmptyView()
+            }
+            .hidden()
         }
     }
 
     func saveReminder() {
-        print("Saved: \(plantName)")
-        dismiss()
+        print("Saved: \(plantName), \(room), \(light), \(wateringDays), \(waterAmount)")
     }
 }
+
 #Preview{
            RontentView()
         }
