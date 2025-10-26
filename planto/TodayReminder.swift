@@ -1,14 +1,18 @@
-
 //
 //
 import SwiftUI
-
 
 struct TodayReminder: View {
 
     @EnvironmentObject var store: PlantStore
     @State private var selectedPlantIDs: Set<UUID> = []
     @State private var isAdding: Bool = false
+
+    // لفتح شاشة التعديل بدون سهم
+    @State private var editingPlant: Plant?
+
+    // الانتقال لصفحة WellDone عند اكتمال التشييك
+    @State private var goToWellDone: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -52,8 +56,16 @@ struct TodayReminder: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        List(store.plants) { p in
-                            PlantRow(plant: p, selectedPlantIDs: $selectedPlantIDs)
+                        List {
+                            ForEach(store.plants) { p in
+                                PlantRow(plant: p, selectedPlantIDs: $selectedPlantIDs)
+                                    // حتى يصبح الصف كله قابل للضغط بدون سهم
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        editingPlant = p
+                                    }
+                            }
+                            .onDelete(perform: deletePlants)
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
@@ -66,7 +78,6 @@ struct TodayReminder: View {
                             .font(.title2.weight(.bold))
                             .foregroundStyle(.white)
                             .frame(width: 60, height: 60)
-                            // ✅ من الأصول
                             .background(Circle().fill(Color("lightGreen").opacity(0.65)))
                             .shadow(radius: 6, y: 4)
                     }
@@ -74,11 +85,49 @@ struct TodayReminder: View {
                     .padding(.bottom, 24)
                     .sheet(isPresented: $isAdding) {
                         RontentView()
+                            .environmentObject(store)
                     }
                 }
             }
+            // شاشة التعديل
+            .sheet(item: $editingPlant, onDismiss: {
+                // تحديث بسيط في حال تم حذف العنصر أثناء التعديل
+                if let current = editingPlant,
+                   store.plants.first(where: { $0.id == current.id }) == nil {
+                    editingPlant = nil
+                }
+            }) { plant in
+                NavigationStack {
+                    EditPlantView(plant: plant)
+                        .environmentObject(store)
+                }
+            }
+            // مراقبة الاكتمال: إذا تم اختيار جميع النباتات، انتقل لصفحة WellDone
+            .onChange(of: selectedPlantIDs) { newValue in
+                let allChecked = !store.plants.isEmpty && newValue.count == store.plants.count
+                goToWellDone = allChecked
+            }
+            .onChange(of: store.plants) { _ in
+                // في حال تغيرت القائمة، أعِد تقييم الاكتمال
+                let allChecked = !store.plants.isEmpty && selectedPlantIDs.count == store.plants.count
+                goToWellDone = allChecked
+            }
+            // التنقل لصفحة WellDone
+            .navigationDestination(isPresented: $goToWellDone) {
+                WellDone()
+                    .environmentObject(store)
+                    .navigationBarBackButtonHidden(true)
+            }
             .toolbar(.hidden)
             .preferredColorScheme(.dark)
+        }
+    }
+
+    private func deletePlants(at offsets: IndexSet) {
+        for index in offsets {
+            let id = store.plants[index].id
+            store.delete(id: id)
+            selectedPlantIDs.remove(id)
         }
     }
 }

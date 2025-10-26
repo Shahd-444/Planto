@@ -8,8 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    // Optionally read the environment object here if you plan to pass it down explicitly.
-    // Not strictly required if you always inject it at the app level and rely on inheritance.
+    
     @EnvironmentObject var store: PlantStore
 
     var body: some View {

@@ -4,42 +4,43 @@ import SwiftUI
 struct RontentView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var store: PlantStore
-
+    
     @State private var plantName: String = ""
     @State private var room: String = "Bedroom"
     @State private var light: String = "Full sun"
     @State private var wateringDays: String = "Every day"
     @State private var waterAmount: String = "20–50 ml"
-
+    
     let roomOptions = ["Bedroom", "Living Room", "Balcony", "Kitchen"]
     let lightOptions = ["Full sun", "Partial shade", "Low light"]
     let daysOptions = ["Every day", "Every 2 days", "Every 3 days", "Once a week", "Every 10 days", "Every 2 weeks"]
     let waterOptions = ["20–50 ml", "50–100 ml", "100–200 ml", "200–300 ml"]
-
+    
     @State private var isActive = false
-
+    
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     TextField("Plant Name", text: $plantName)
+                        .textInputAutocapitalization(.words)
                 }
-
+                
                 Section(header: Text("Room & Light")) {
                     Picker("Room", selection: $room) {
                         ForEach(roomOptions, id: \.self) { Text($0) }
                     }
-
+                    
                     Picker("Light", selection: $light) {
                         ForEach(lightOptions, id: \.self) { Text($0) }
                     }
                 }
-
+                
                 Section(header: Text("Watering")) {
                     Picker("Watering Days", selection: $wateringDays) {
                         ForEach(daysOptions, id: \.self) { Text($0) }
                     }
-
+                    
                     Picker("Water Amount", selection: $waterAmount) {
                         ForEach(waterOptions, id: \.self) { Text($0) }
                     }
@@ -55,7 +56,7 @@ struct RontentView: View {
                         Image(systemName: "xmark")
                     }
                 }
-
+                
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         saveReminder()
@@ -65,10 +66,10 @@ struct RontentView: View {
                             .foregroundColor(.white)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(.lightGreen).opacity(0.65))
+                    .tint(Color("lightGreen").opacity(0.65))
+                    .disabled(plantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-
             .navigationDestination(isPresented: $isActive) {
                 TodayReminder()
                     .environmentObject(store)
@@ -76,14 +77,15 @@ struct RontentView: View {
             }
         }
     }
-
-    func saveReminder() {
-        guard !plantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        store.add(name: plantName, room: room, sun: light, wateringDays: wateringDays, water: waterAmount)
+    
+    private func saveReminder() {
+        let name = plantName.trimmingCharacters(in: .whitespacesAndNewlines)
+        store.add(name: name, room: room, sun: light, wateringDays: wateringDays, water: waterAmount)
     }
 }
 
 #Preview{
+
     RontentView()
         .environmentObject(PlantStore())
 }
