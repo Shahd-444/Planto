@@ -4,26 +4,11 @@
 import SwiftUI
 
 
-struct Plant: Identifiable {
-    let id = UUID()
-    let name: String
-    let room: String
-    let sun: String = "Full sun"
-    let water: String = "20–50 ml"
-}
-
 struct TodayReminder: View {
 
-   
+    @EnvironmentObject var store: PlantStore
     @State private var selectedPlantIDs: Set<UUID> = []
-
-    @State private var plants: [Plant] = [
-        .init(name: "Monstera", room: "Kitchen"),
-        .init(name: "Pothos",   room: "Bedroom"),
-        .init(name: "Orchid",   room: "Living Room"),
-        .init(name: "Spider",   room: "Kitchen")
-    ]
-//    @State private var progress: Double = 0.0
+    @State private var isAdding: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -42,27 +27,41 @@ struct TodayReminder: View {
 
                     // السطر الرمادي + شريط التقدم
                     Text(selectedPlantIDs.isEmpty
-                         ? "Your plants are waiting for a sip 💦"
+                         ? (store.plants.isEmpty ? "No plants yet. Tap + to add your first plant 🌱" : "Your plants are waiting for a sip 💦")
                          : "\(selectedPlantIDs.count) of your plants feel loved today ✨")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal)
 
-                    ProgressView(value: Double(selectedPlantIDs.count), total: Double(plants.count))
+                    ProgressView(value: Double(selectedPlantIDs.count), total: Double(max(store.plants.count, 1)))
                         .tint(Color("lightGreen"))
                         .padding(.horizontal)
                         .animation(.easeInOut(duration: 0.2), value: selectedPlantIDs.count)
 
                     // اللستة
-                    List(plants) { p in
-                                                PlantRow(plant: p, selectedPlantIDs: $selectedPlantIDs)
+                    if store.plants.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "leaf")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.secondary)
+                            Text("No plants yet")
+                                .font(.headline)
+                            Text("Tap the + button to add your first plant.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(store.plants) { p in
+                            PlantRow(plant: p, selectedPlantIDs: $selectedPlantIDs)
+                        }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
                 // زر + عائم
                 .overlay(alignment: .bottomTrailing) {
-                    Button { } label: {
+                    Button { isAdding = true } label: {
                         Image(systemName: "plus")
                             .font(.title2.weight(.bold))
                             .foregroundStyle(.white)
@@ -73,6 +72,9 @@ struct TodayReminder: View {
                     }
                     .padding(.trailing, 20)
                     .padding(.bottom, 24)
+                    .sheet(isPresented: $isAdding) {
+                        RontentView()
+                    }
                 }
             }
             .toolbar(.hidden)
@@ -84,7 +86,7 @@ struct TodayReminder: View {
 // صف النبات
 struct PlantRow: View {
     let plant: Plant
-        @Binding var selectedPlantIDs: Set<UUID>
+    @Binding var selectedPlantIDs: Set<UUID>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -147,4 +149,7 @@ struct Badge: View {
     }
 }
 
-#Preview { TodayReminder() }
+#Preview {
+    TodayReminder()
+        .environmentObject(PlantStore())
+}

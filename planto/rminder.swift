@@ -1,9 +1,9 @@
-
 //  
 import SwiftUI
 
 struct RontentView: View {
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var store: PlantStore
 
     @State private var plantName: String = ""
     @State private var room: String = "Bedroom"
@@ -65,21 +65,25 @@ struct RontentView: View {
                             .foregroundColor(.white)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(.lightGreen).opacity(0.65))                }
+                    .tint(Color(.lightGreen).opacity(0.65))
+                }
             }
 
             .navigationDestination(isPresented: $isActive) {
                 TodayReminder()
-                      .navigationBarBackButtonHidden(true)
-                  }
+                    .environmentObject(store)
+                    .navigationBarBackButtonHidden(true)
+            }
         }
     }
 
     func saveReminder() {
-        print("Saved: \(plantName), \(room), \(light), \(wateringDays), \(waterAmount)")
+        guard !plantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        store.add(name: plantName, room: room, sun: light, wateringDays: wateringDays, water: waterAmount)
     }
 }
 
 #Preview{
-           RontentView()
-        }
+    RontentView()
+        .environmentObject(PlantStore())
+}
