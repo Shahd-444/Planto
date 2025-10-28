@@ -1,18 +1,14 @@
-//
-//
 import SwiftUI
 
 struct TodayReminder: View {
 
-    @EnvironmentObject var store: PlantStore
-    @State private var selectedPlantIDs: Set<UUID> = []
-    @State private var isAdding: Bool = false
+    @EnvironmentObject private var store: PlantStore
+    @StateObject private var viewModel: TodayReminderViewModel
 
-    // لفتح شاشة التعديل بدون سهم
-    @State private var editingPlant: Plant?
-
-    // الانتقال لصفحة WellDone عند اكتمال التشييك
-    @State private var goToWellDone: Bool = false
+    // حقن صريح للـ store (يفضّل تمريره عند الاستدعاء)
+    init(store: PlantStore) {
+        _viewModel = StateObject(wrappedValue: TodayReminderViewModel(store: store))
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,140 +16,123 @@ struct TodayReminder: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 10) {
-                    // العنوان
-                    HStack(spacing: 6) {
-                        Text("My Plants")
-                            .font(.system(size: 36, weight: .heavy, design: .rounded))
-                        Text("🌱").font(.system(size: 36))
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
-                    // السطر الرمادي + شريط التقدم
-                    Text(selectedPlantIDs.isEmpty
-                         ? (store.plants.isEmpty ? "No plants yet. Tap + to add your first plant 🌱" : "Your plants are waiting for a sip 💦")
-                         : "\(selectedPlantIDs.count) of your plants feel loved today ✨")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-
-                    ProgressView(value: Double(selectedPlantIDs.count), total: Double(max(store.plants.count, 1)))
-                        .tint(Color("lightGreen"))
-                        .padding(.horizontal)
-                        .animation(.easeInOut(duration: 0.2), value: selectedPlantIDs.count)
-
-                    // اللستة
-                    if store.plants.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "leaf")
-                                .font(.system(size: 48))
-                                .foregroundStyle(.secondary)
-                            Text("No plants yet")
-                                .font(.headline)
-                            Text("Tap the + button to add your first plant.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        List {
-                            ForEach(store.plants) { p in
-                                PlantRow(plant: p, selectedPlantIDs: $selectedPlantIDs)
-                                    // حتى يصبح الصف كله قابل للضغط بدون سهم
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        editingPlant = p
-                                    }
-                            }
-                            .onDelete(perform: deletePlants)
-                        }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                    }
+                    header
+                    subtitleAndProgress
+                    contentList
                 }
-                // زر + عائم
-                .overlay(alignment: .bottomTrailing) {
-                    Button { isAdding = true } label: {
-                        Image(systemName: "plus")
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 60, height: 60)
-                            .background(Circle().fill(Color("lightGreen").opacity(0.65)))
-                            .shadow(radius: 6, y: 4)
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 24)
-                    .sheet(isPresented: $isAdding) {
-                        RontentView()
-                            .environmentObject(store)
-                    }
-                }
+                .overlay(alignment: .bottomTrailing) { addButton }
             }
-            // شاشة التعديل
-            .sheet(item: $editingPlant, onDismiss: {
-                // تحديث بسيط في حال تم حذف العنصر أثناء التعديل
-                if let current = editingPlant,
-                   store.plants.first(where: { $0.id == current.id }) == nil {
-                    editingPlant = nil
-                }
-            }) { plant in
+            .sheet(item: $viewModel.editingPlant) { plant in
                 NavigationStack {
-                    EditPlantView(plant: plant)
-                        .environmentObject(store)
+                    EditPlantView(store: store, plant: plant)
                 }
             }
-            // مراقبة الاكتمال: إذا تم اختيار جميع النباتات، انتقل لصفحة WellDone
-            .onChange(of: selectedPlantIDs) { newValue in
-                let allChecked = !store.plants.isEmpty && newValue.count == store.plants.count
-                goToWellDone = allChecked
-            }
-            .onChange(of: store.plants) { _ in
-                // في حال تغيرت القائمة، أعِد تقييم الاكتمال
-                let allChecked = !store.plants.isEmpty && selectedPlantIDs.count == store.plants.count
-                goToWellDone = allChecked
-            }
-            // التنقل لصفحة WellDone
-            .navigationDestination(isPresented: $goToWellDone) {
-                WellDone()
-                    .environmentObject(store)
-                    .navigationBarBackButtonHidden(true)
+            .sheet(isPresented: $viewModel.isWellDonePresented) {
+                WellDone().environmentObject(store)
             }
             .toolbar(.hidden)
             .preferredColorScheme(.dark)
         }
     }
 
-    private func deletePlants(at offsets: IndexSet) {
-        for index in offsets {
-            let id = store.plants[index].id
-            store.delete(id: id)
-            selectedPlantIDs.remove(id)
+    // MARK: - Subviews
+    private var header: some View {
+        HStack(spacing: 6) {
+            Text("My Plants")
+                .font(.system(size: 36, weight: .heavy, design: .rounded))
+            Text("🌱").font(.system(size: 36))
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private var subtitleAndProgress: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(viewModel.selectedPlantIDs.isEmpty
+                 ? (viewModel.plants.isEmpty ? "No plants yet. Tap + to add your first plant 🌱" : "Your plants are waiting for a sip 💦")
+                 : "\(viewModel.selectedPlantIDs.count) of your plants feel loved today ✨")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ProgressView(value: Double(viewModel.selectedPlantIDs.count), total: Double(max(viewModel.plants.count, 1)))
+                .tint(Color("lightGreen"))
+                .animation(.easeInOut(duration: 0.2), value: viewModel.selectedPlantIDs.count)
+        }
+        .padding(.horizontal)
+    }
+
+    private var contentList: some View {
+        Group {
+            if viewModel.plants.isEmpty {
+                EmptyStateView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(viewModel.plants) { p in
+                        PlantRow(
+                            plant: p,
+                            selected: viewModel.selectedPlantIDs.contains(p.id),
+                            onToggle: { viewModel.toggleSelection(for: p.id) }
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { viewModel.openEdit(for: p) }
+                    }
+                    .onDelete(perform: viewModel.delete(at:))
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+    }
+
+    private var addButton: some View {
+        Button { viewModel.openAddSheet() } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(Circle().fill(Color("lightGreen").opacity(0.65)))
+                .shadow(radius: 6, y: 4)
+        }
+        .padding(.trailing, 20)
+        .padding(.bottom, 24)
+        .sheet(isPresented: $viewModel.isAdding) {
+            RontentView(store: store)
+                .environmentObject(store)
         }
     }
 }
 
-// صف النبات
-struct PlantRow: View {
+// MARK: - Small subviews
+private struct EmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "leaf")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            Text("No plants yet")
+                .font(.headline)
+            Text("Tap the + button to add your first plant.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct PlantRow: View {
     let plant: Plant
-    @Binding var selectedPlantIDs: Set<UUID>
+    let selected: Bool
+    let onToggle: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12 ) {
-                // ✅ دائرة فيها صح إذا محددة
-                Image(systemName: selectedPlantIDs.contains(plant.id) ? "checkmark.circle.fill" : "circle")
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundColor(selectedPlantIDs.contains(plant.id) ? Color("lightGreen") : .white)
-                    .onTapGesture {
-                        if selectedPlantIDs.contains(plant.id) {
-                            selectedPlantIDs.remove(plant.id)
-                        } else {
-                            selectedPlantIDs.insert(plant.id)
-                        }
-                    }
+                    .foregroundColor(selected ? Color("lightGreen") : .white)
+                    .onTapGesture { onToggle() }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    // الموقع
                     HStack(spacing: 6) {
                         Image(systemName: "paperplane")
                             .font(.subheadline)
@@ -163,11 +142,9 @@ struct PlantRow: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    // الاسم
                     Text(plant.name)
                         .font(.system(size: 30, weight: .bold, design: .rounded))
 
-                    // البادجات
                     HStack(spacing: 8) {
                         Badge(icon: "sun.max", text: plant.sun)
                         Badge(icon: "drop", text: plant.water)
@@ -181,8 +158,7 @@ struct PlantRow: View {
     }
 }
 
-// كبسولة بسيطة
-struct Badge: View {
+private struct Badge: View {
     let icon: String
     let text: String
     var body: some View {
@@ -199,6 +175,7 @@ struct Badge: View {
 }
 
 #Preview {
-    TodayReminder()
+    // للمعاينة فقط: Store مؤقت
+    TodayReminder(store: PlantStore())
         .environmentObject(PlantStore())
 }

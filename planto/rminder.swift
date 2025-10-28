@@ -1,48 +1,45 @@
 //  
 import SwiftUI
 
+// MARK: - Set Reminder (View)
 struct RontentView: View {
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var store: PlantStore
-    
-    @State private var plantName: String = ""
-    @State private var room: String = "Bedroom"
-    @State private var light: String = "Full sun"
-    @State private var wateringDays: String = "Every day"
-    @State private var waterAmount: String = "20–50 ml"
-    
-    let roomOptions = ["Bedroom", "Living Room", "Balcony", "Kitchen"]
-    let lightOptions = ["Full sun", "Partial shade", "Low light"]
-    let daysOptions = ["Every day", "Every 2 days", "Every 3 days", "Once a week", "Every 10 days", "Every 2 weeks"]
-    let waterOptions = ["20–50 ml", "50–100 ml", "100–200 ml", "200–300 ml"]
-    
-    @State private var isActive = false
-    
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: PlantStore
+
+    // ViewModel يمسك كل حالة الشاشة ومنطقها
+    @StateObject private var viewModel: ReminderViewModel
+
+    // حقن الـ Store داخل الـ ViewModel (MVVM حقيقي)
+    init(store: PlantStore) {
+        _viewModel = StateObject(wrappedValue: ReminderViewModel(store: store))
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                // الاسم
                 Section {
-                    TextField("Plant Name", text: $plantName)
+                    TextField("Plant Name", text: $viewModel.plantName)
                         .textInputAutocapitalization(.words)
                 }
-                
+
+                // الغرفة والإضاءة
                 Section(header: Text("Room & Light")) {
-                    Picker("Room", selection: $room) {
-                        ForEach(roomOptions, id: \.self) { Text($0) }
+                    Picker("Room", selection: $viewModel.room) {
+                        ForEach(viewModel.roomOptions, id: \.self) { Text($0) }
                     }
-                    
-                    Picker("Light", selection: $light) {
-                        ForEach(lightOptions, id: \.self) { Text($0) }
+                    Picker("Light", selection: $viewModel.light) {
+                        ForEach(viewModel.lightOptions, id: \.self) { Text($0) }
                     }
                 }
-                
+
+                // السقي
                 Section(header: Text("Watering")) {
-                    Picker("Watering Days", selection: $wateringDays) {
-                        ForEach(daysOptions, id: \.self) { Text($0) }
+                    Picker("Watering Days", selection: $viewModel.wateringDays) {
+                        ForEach(viewModel.daysOptions, id: \.self) { Text($0) }
                     }
-                    
-                    Picker("Water Amount", selection: $waterAmount) {
-                        ForEach(waterOptions, id: \.self) { Text($0) }
+                    Picker("Water Amount", selection: $viewModel.waterAmount) {
+                        ForEach(viewModel.waterOptions, id: \.self) { Text($0) }
                     }
                 }
             }
@@ -50,42 +47,32 @@ struct RontentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
+                    Button { dismiss() } label: {
                         Image(systemName: "xmark")
                     }
                 }
-                
                 ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        saveReminder()
-                        isActive = true
-                    } label: {
+                    Button { viewModel.saveReminder() } label: {
                         Image(systemName: "checkmark")
                             .foregroundColor(.white)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color("lightGreen").opacity(0.65))
-                    .disabled(plantName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(viewModel.isSaveDisabled)
                 }
             }
-            .navigationDestination(isPresented: $isActive) {
-                TodayReminder()
+            // التنقل بعد الحفظ يدار من الـ ViewModel عبر isActive
+            .navigationDestination(isPresented: $viewModel.isActive) {
+                // مرّر الـ store هنا
+                TodayReminder(store: store)
                     .environmentObject(store)
                     .navigationBarBackButtonHidden(true)
             }
         }
     }
-    
-    private func saveReminder() {
-        let name = plantName.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.add(name: name, room: room, sun: light, wateringDays: wateringDays, water: waterAmount)
-    }
 }
 
-#Preview{
-
-    RontentView()
+#Preview {
+    RontentView(store: PlantStore())
         .environmentObject(PlantStore())
 }
